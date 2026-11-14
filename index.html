@@ -117,6 +117,19 @@
         /* 管理員專屬區塊預設隱藏 */
         .admin-only { display: none; }
         
+        /* 版面順序控制：觀眾預設先看各隊抽籤結果，管理員則維持待抽籤名單在上方方便拖曳 */
+        #app-container {
+            display: flex;
+            flex-direction: column;
+        }
+        #header-panel { order: 1; }
+        #admin-panel  { order: 2; }
+        #teams-panel  { order: 3; }
+        #pool-panel   { order: 4; }
+
+        body.is-admin #pool-panel  { order: 3; }
+        body.is-admin #teams-panel { order: 4; }
+
         /* 一般觀眾純觀看模式樣式鎖定 */
         body:not(.is-admin) .u-item,
         body:not(.is-admin) .member-item {
@@ -148,7 +161,7 @@
 <div id="app-container">
     
     <!-- 匯出與標題列 -->
-    <div class="panel" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <div class="panel" id="header-panel" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
         <div>
             <strong style="font-size: 17px; color: #FFFFFF;">🏆 2027 香香盃分隊抽籤看板</strong>
             <span style="font-size: 12px; color: #E5E7EB; display:block;">共 10 組 (A ~ J) · 每組 8 人</span>
@@ -180,7 +193,7 @@
     </div>
 
     <!-- 備選區 (待抽籤名單) -->
-    <div class="panel" style="border-top: 4px solid #9CA3AF;">
+    <div class="panel" id="pool-panel" style="border-top: 4px solid #9CA3AF;">
         <strong style="display:block; margin-bottom: 8px; color: #FFFFFF;">
             待抽籤名單 (<span id="u-cnt">0</span> 人) 
             <span class="admin-only" id="pool-hint" style="font-size:12px; color:#D1D5DB; font-weight:normal;">- 直接按住拖曳至下方 A~J 隊伍，或雙擊自動補位</span>
@@ -189,7 +202,7 @@
     </div>
 
     <!-- A ~ J 十隊分組看板 -->
-    <div class="panel" style="border-top: 4px solid #60A5FA;">
+    <div class="panel" id="teams-panel" style="border-top: 4px solid #60A5FA;">
         <strong style="display:block; margin-bottom: 10px; color: #FFFFFF;">
             各隊抽籤結果 (<span id="s-cnt">0</span> / 80 人) 
             <span class="admin-only" id="board-hint" style="font-size:12px; color:#D1D5DB; font-weight:normal;">- 隊員可跨隊拖曳調整位置</span>
