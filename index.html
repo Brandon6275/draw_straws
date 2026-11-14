@@ -385,8 +385,16 @@
         if(!isAdmin) return;
         const idx = window.unselected.findIndex(p => p.id === id);
         if(idx > -1) {
-            window.unselected.splice(idx, 1);
-            window.syncData();
+            const personName = window.unselected[idx].name;
+            openConfirm(`確定要將「${personName}」從待抽籤名單中徹底刪除嗎？`, () => {
+                // 重新尋找索引以防多人同步時陣列位置變動
+                const currentIdx = window.unselected.findIndex(p => p.id === id);
+                if(currentIdx > -1) {
+                    window.unselected.splice(currentIdx, 1);
+                    window.syncData();
+                    showToast(`已刪除「${personName}」`);
+                }
+            });
         }
     };
 
