@@ -20,9 +20,9 @@
             --t-J: #F1F5F9; /* 柔灰藍 */
         }
         * { box-sizing: border-box; font-family: sans-serif; }
-        body { margin: 0; padding: 10px; background-color: #666666; color: #F9FAFB; touch-action: manipulation; }
+        body { margin: 0; padding: 10px; background-color: #444444; color: #F9FAFB; touch-action: manipulation; }
         
-        .panel { background: #666666; border: 1px solid #777777; border-radius: 8px; padding: 12px; margin-bottom: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.25); color: #F9FAFB; }
+        .panel { background: #444444; border: 1px solid #555555; border-radius: 8px; padding: 12px; margin-bottom: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.35); color: #F9FAFB; }
         button { padding: 6px 12px; border: 1px solid #D1D5DB; border-radius: 6px; background: white; color: #1F2937; cursor: pointer; font-size: 13px; font-weight: 500; }
         button:active { background: #F3F4F6; }
         input[type="text"] { padding: 6px; border: 1px solid #D1D5DB; border-radius: 6px; color: #1F2937; }
@@ -193,15 +193,6 @@
         <strong style="display:block; margin-bottom: 10px; color: #FFFFFF;">
             各隊抽籤結果 (<span id="s-cnt">0</span> / 80 人) 
             <span class="admin-only" id="board-hint" style="font-size:12px; color:#D1D5DB; font-weight:normal;">- 隊員可跨隊拖曳調整位置</span>
-        </strong>
-        <div id="unselected-list" class="flex-wrap" style="min-height: 45px;"></div>
-    </div>
-
-    <!-- A ~ J 十隊分組看板 -->
-    <div class="panel" style="border-top: 4px solid #3B82F6;">
-        <strong style="display:block; margin-bottom: 10px;">
-            各隊抽籤結果 (<span id="s-cnt">0</span> / 80 人) 
-            <span class="admin-only" id="board-hint" style="font-size:12px; color:#6B7280; font-weight:normal;">- 隊員可跨隊拖曳調整位置</span>
         </strong>
         
         <div id="export-target">
@@ -476,7 +467,7 @@
         const removeBtns = target.querySelectorAll('.member-remove');
         removeBtns.forEach(btn => btn.style.display = 'none');
 
-        html2canvas(target, { backgroundColor: '#666666', scale: 2 }).then(canvas => {
+        html2canvas(target, { backgroundColor: '#444444', scale: 2 }).then(canvas => {
             target.style.width = origW;
             target.style.padding = origPad;
             board.style.gridTemplateColumns = origCols;
