@@ -183,7 +183,7 @@
     <div class="panel" style="border-top: 4px solid #9CA3AF;">
         <strong style="display:block; margin-bottom: 8px; color: #FFFFFF;">
             待抽籤名單 (<span id="u-cnt">0</span> 人) 
-            <span class="admin-only" id="pool-hint" style="font-size:12px; color:#D1D5DB; font-weight:normal;">- 直接按住拖曳至下方 A~J 隊伍，或點擊快速入隊</span>
+            <span class="admin-only" id="pool-hint" style="font-size:12px; color:#D1D5DB; font-weight:normal;">- 直接按住拖曳至下方 A~J 隊伍，或雙擊自動補位</span>
         </strong>
         <div id="unselected-list" class="flex-wrap" style="min-height: 45px;"></div>
     </div>
@@ -377,28 +377,28 @@
         }
     };
 
-    // 點擊待抽籤名單：自動分配到第一個未滿 8 人的隊伍 (方便快速操作)
+    // 雙擊待抽籤名單：自動分配到目前人數最少的隊伍 (人數相同時從 A 開始優先)
     window.quickAssign = function(id) {
         if(!isAdmin) return;
         const idx = window.unselected.findIndex(p => p.id === id);
         if(idx === -1) return;
         
-        // 尋找第一個未滿 8 人的隊伍
-        let targetTeam = null;
+        // 尋找目前人數最少的隊伍 (依序檢查 A ~ J，只有嚴格小於目前最小值才替換，確保相同人數時由 A 優先)
+        let targetTeam = 'A';
+        let minCount = Infinity;
         for (let t of teamList) {
             const count = window.selected.filter(p => p.team === t).length;
-            if (count < 8) {
+            if (count < minCount) {
+                minCount = count;
                 targetTeam = t;
-                break;
             }
         }
-        if (!targetTeam) targetTeam = 'A'; // 若全滿則預設入A
 
         const person = window.unselected.splice(idx, 1)[0];
         person.team = targetTeam;
         window.selected.push(person);
         window.syncData();
-        showToast(`${person.name} ➔ 進入第 ${targetTeam} 組`);
+        showToast(`${person.name} ➔ 自動補位至第 ${targetTeam} 組 (目前 ${minCount + 1} 人)`);
     };
 
     // 將成員退回待抽籤區
@@ -527,6 +527,7 @@
 
     // 統一拖曳與點擊邏輯 (支援從待抽籤區直接拉進 A-J 隊，也支援隊伍間互拉)
     let dragEl = null, ghostEl = null, offsetX = 0, offsetY = 0, startX = 0, startY = 0, isDragging = false;
+    let lastTapId = null, lastTapTime = 0;
 
     function setupDragAndClick() {
         if(!isAdmin) return; // 非管理員完全停用拖曳與點擊互動
@@ -604,10 +605,20 @@
             ghostEl = null;
             dragEl.style.opacity = '';
 
-            // 如果是純點擊（沒有拖曳）且來自待抽籤區 -> 快速入隊
+            // 如果是純點擊（沒有拖曳）且來自待抽籤區 -> 偵測雙擊 (350ms 內連續點擊同一人) 才觸發自動入隊
             if (!isDragging) {
                 dragEl = null;
-                if (source === 'pool') quickAssign(id);
+                if (source === 'pool') {
+                    const now = Date.now();
+                    if (lastTapId === id && (now - lastTapTime) < 350) {
+                        lastTapId = null;
+                        lastTapTime = 0;
+                        quickAssign(id);
+                    } else {
+                        lastTapId = id;
+                        lastTapTime = now;
+                    }
+                }
                 return;
             }
 
