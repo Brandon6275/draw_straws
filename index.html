@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>2027 香香盃分隊抽籤看板</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        :root {
+            /* A-J 十隊專屬低彩度配色 */
+            --t-A: #FEE2E2; /* 柔紅 */
+            --t-B: #FFEDD5; /* 柔橘 */
+            --t-C: #FEF9C3; /* 柔黃 */
+            --t-D: #DCFCE7; /* 柔綠 */
+            --t-E: #CCFBF1; /* 柔青 */
+            --t-F: #DBEAFE; /* 柔藍 */
+            --t-G: #E0E7FF; /* 柔靛 */
+            --t-H: #F3E8FF; /* 柔紫 */
+            --t-I: #FCE7F3; /* 柔粉 */
+            --t-J: #F1F5F9; /* 柔灰藍 */
+        }
+        * { box-sizing: border-box; font-family: sans-serif; }
+        body { margin: 0; padding: 10px; background-color: #E5E7EB; color: #1F2937; touch-action: manipulation; }
+        
+        .panel { background: white; border-radius: 8px; padding: 12px; margin-bottom: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        button { padding: 6px 12px; border: 1px solid #D1D5DB; border-radius: 6px; background: white; cursor: pointer; font-size: 13px; font-weight: 500; }
+        button:active { background: #F3F4F6; }
+        input[type="text"] { padding: 6px; border: 1px solid #D1D5DB; border-radius: 6px; }
+        
+        .flex-wrap { display: flex; flex-wrap: wrap; gap: 8px; }
+        
+        /* 備選區人名卡片 (支援直接拖曳或點擊) */
+        .u-item { 
+            display: inline-flex; align-items: center; padding: 8px 12px; 
+            background: white; border: 1px solid #CBD5E1; border-radius: 6px; 
+            font-size: 14px; font-weight: 500; cursor: grab; user-select: none; touch-action: none;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        .u-item:active { cursor: grabbing; transform: scale(0.95); }
+
+        /* A-J 十隊看板網格 */
+        .teams-board {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr); /* 電腦版一排5隊，共兩排 */
+            gap: 10px;
+        }
+        @media (max-width: 768px) {
+            .teams-board { grid-template-columns: repeat(2, 1fr); } /* 手機版一排2隊 */
+        }
+
+        .team-col {
+            border: 2px solid #E5E7EB;
+            border-radius: 8px;
+            background: #F9FAFB;
+            display: flex;
+            flex-direction: column;
+            min-height: 280px;
+            overflow: hidden;
+        }
+        .team-header {
+            padding: 8px 10px;
+            font-weight: bold;
+            font-size: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid rgba(0,0,0,0.08);
+        }
+        .team-badge {
+            font-size: 12px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.7);
+            color: #374151;
+        }
+        .team-badge.full {
+            background: #10B981;
+            color: white;
+        }
+        .team-badge.over {
+            background: #EF4444;
+            color: white;
+        }
+
+        .team-list {
+            flex: 1;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-height: 220px;
+        }
+
+        /* 隊伍內的成員方塊 */
+        .member-item {
+            background: white;
+            border: 1px solid rgba(0,0,0,0.12);
+            border-radius: 6px;
+            padding: 6px 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+            user-select: none;
+            touch-action: none;
+            cursor: grab;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+        }
+        .member-item:active { cursor: grabbing; opacity: 0.85; }
+        .member-left { display: flex; align-items: center; gap: 6px; overflow: hidden; }
+        .member-num { font-size: 11px; color: #6B7280; font-weight: bold; min-width: 16px; }
+        .member-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+        .member-remove { font-size: 13px; color: #EF4444; cursor: pointer; padding: 2px 4px; line-height: 1; font-weight: bold; }
+
+        /* 管理員專屬區塊預設隱藏 */
+        .admin-only { display: none; }
+        
+        /* 一般觀眾純觀看模式樣式鎖定 */
+        body:not(.is-admin) .u-item,
+        body:not(.is-admin) .member-item {
+            cursor: default !important;
+            touch-action: auto !important;
+        }
+        body:not(.is-admin) .u-item:active,
+        body:not(.is-admin) .member-item:active {
+            transform: none !important;
+            opacity: 1 !important;
+        }
+        body:not(.is-admin) .member-remove {
+            display: none !important;
+        }
+        
+        /* 自訂訊息提示框 (取代 alert) */
+        #toast-msg {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: #1F2937; color: white; padding: 10px 20px; border-radius: 8px;
+            font-size: 14px; z-index: 10000; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+    </style>
+</head>
+<body>
+
+<div id="toast-msg"></div>
+
+<!-- 📦 主要應用程式內容 -->
+<div id="app-container">
+    
+    <!-- 匯出與標題列 -->
+    <div class="panel" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <div>
+            <strong style="font-size: 17px; color: #111827;">🏆 2027 香香盃分隊抽籤看板</strong>
+            <span style="font-size: 12px; color: #6B7280; display:block;">共 10 組 (A ~ J) · 每組 8 人</span>
+        </div>
+        <!-- 觀眾模式提示標籤 -->
+        <div id="viewer-badge" style="background:#EFF6FF; color:#1D4ED8; border:1px solid #BFDBFE; padding:6px 12px; border-radius:6px; font-size:13px; font-weight:600;">
+            👀 抽籤結果即時轉播中 (僅供觀看)
+        </div>
+        <!-- 匯出按鈕僅限管理員可見 -->
+        <div class="flex-wrap admin-only" id="export-controls">
+            <button onclick="exportTXT()" style="background:#10B981; color:white; border-color:#10B981;">匯出 TXT</button>
+            <button onclick="exportCSV()" style="background:#10B981; color:white; border-color:#10B981;">匯出 CSV</button>
+            <button onclick="exportJPG()" style="background:#8B5CF6; color:white; border-color:#8B5CF6;">匯出分隊圖 (JPG)</button>
+        </div>
+    </div>
+
+    <!-- 只有管理員看得見的控制面板 (?admin=true) -->
+    <div class="panel admin-only" id="admin-panel" style="border: 2px dashed #EF4444; background: #FEF2F2;">
+        <strong style="color: #EF4444; display: block; margin-bottom: 8px;">👑 管理員專屬控制區</strong>
+        <div class="flex-wrap" style="margin-bottom: 10px;">
+            <button onclick="loadXiangXiangCup2027()" style="background:#F59E0B; color:white; border-color:#F59E0B;">📥 一鍵載入 2027 香香盃 80 人名單</button>
+            <button onclick="resetAllToPool()">🔄 全部退回備選區</button>
+            <button onclick="clearAllConfirm()" style="background:#EF4444; color:white; border-color:#EF4444;">🗑️ 清空所有資料</button>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+            <input type="text" id="new-name" placeholder="手動補登人名" style="width: 140px;">
+            <button onclick="addNewName()">新增至備選區</button>
+        </div>
+    </div>
+
+    <!-- 備選區 (待抽籤名單) -->
+    <div class="panel" style="border-top: 4px solid #6B7280;">
+        <strong style="display:block; margin-bottom: 8px;">
+            待抽籤名單 (<span id="u-cnt">0</span> 人) 
+            <span class="admin-only" id="pool-hint" style="font-size:12px; color:#6B7280; font-weight:normal;">- 直接按住拖曳至下方 A~J 隊伍，或點擊快速入隊</span>
+        </strong>
+        <div id="unselected-list" class="flex-wrap" style="min-height: 45px;"></div>
+    </div>
+
+    <!-- A ~ J 十隊分組看板 -->
+    <div class="panel" style="border-top: 4px solid #3B82F6;">
+        <strong style="display:block; margin-bottom: 10px;">
+            各隊抽籤結果 (<span id="s-cnt">0</span> / 80 人) 
+            <span class="admin-only" id="board-hint" style="font-size:12px; color:#6B7280; font-weight:normal;">- 隊員可跨隊拖曳調整位置</span>
+        </strong>
+        
+        <div id="export-target">
+            <div class="teams-board" id="teams-board">
+                <!-- 由 JS 動態生成 A ~ J 十個隊伍欄位 -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 確認清空自訂視窗 (取代 confirm) -->
+<div id="confirm-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; justify-content:center; align-items:center;">
+    <div style="background:white; padding:20px; border-radius:8px; width:90%; max-width:360px; text-align:center;">
+        <h3 style="margin-top:0; color:#EF4444;">⚠️ 確定要執行嗎？</h3>
+        <p id="confirm-text" style="font-size:14px; color:#4B5563; margin-bottom:20px;"></p>
+        <div style="display:flex; justify-content:center; gap:10px;">
+            <button onclick="closeConfirmModal()">取消</button>
+            <button id="confirm-yes-btn" style="background:#EF4444; color:white; border-color:#EF4444;">確定執行</button>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // 檢查管理員模式 (?admin=true)
+    const isAdmin = new URLSearchParams(window.location.search).get('admin') === 'true';
+    if(isAdmin) {
+        document.body.classList.add('is-admin');
+        document.getElementById('admin-panel').style.display = 'block';
+        document.getElementById('export-controls').style.display = 'flex';
+        document.getElementById('pool-hint').style.display = 'inline';
+        document.getElementById('board-hint').style.display = 'inline';
+        document.getElementById('viewer-badge').style.display = 'none';
+    }
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyBuDpw1ObUpJAcT1PJFXBg7v0ExM4qUtVo",
+        authDomain: "shiang80men.firebaseapp.com",
+        projectId: "shiang80men",
+        storageBucket: "shiang80men.firebasestorage.app",
+        messagingSenderId: "1036601026877",
+        appId: "1:1036601026877:web:ec207442dbd3b347953d54"
+    };
+
+    const teamList = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+    const teamColors = {
+        'A': 'var(--t-A)', 'B': 'var(--t-B)', 'C': 'var(--t-C)', 'D': 'var(--t-D)', 'E': 'var(--t-E)',
+        'F': 'var(--t-F)', 'G': 'var(--t-G)', 'H': 'var(--t-H)', 'I': 'var(--t-I)', 'J': 'var(--t-J)'
+    };
+
+    window.unselected = []; // 備選區名單
+    window.selected = [];   // 已分隊名單 { id, name, team }
+
+    // 初始化生成 A-J 十隊骨架
+    const boardEl = document.getElementById('teams-board');
+    boardEl.innerHTML = teamList.map(t => `
+        <div class="team-col" style="border-color: rgba(0,0,0,0.12);">
+            <div class="team-header" style="background: ${teamColors[t]};">
+                <span>第 ${t} 組</span>
+                <span class="team-badge" id="badge-${t}">0 / 8</span>
+            </div>
+            <div class="team-list" id="team-${t}" data-team="${t}"></div>
+        </div>
+    `).join('');
+
+    // 提示訊息工具 (取代 alert)
+    window.showToast = function(msg) {
+        const el = document.getElementById('toast-msg');
+        el.innerText = msg;
+        el.style.display = 'block';
+        setTimeout(() => { el.style.display = 'none'; }, 2500);
+    };
+
+    // 自訂確認框 (取代 confirm)
+    let pendingConfirmAction = null;
+    window.openConfirm = function(msg, action) {
+        document.getElementById('confirm-text').innerText = msg;
+        pendingConfirmAction = action;
+        document.getElementById('confirm-modal').style.display = 'flex';
+    };
+    window.closeConfirmModal = function() {
+        document.getElementById('confirm-modal').style.display = 'none';
+        pendingConfirmAction = null;
+    };
+    document.getElementById('confirm-yes-btn').onclick = () => {
+        if(pendingConfirmAction) pendingConfirmAction();
+        closeConfirmModal();
+    };
+
+    // Firebase 連線 (使用獨立文件，不覆蓋原本能力分組資料)
+    let db, docRef;
+    if (firebaseConfig.projectId) {
+        try {
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            docRef = doc(db, "sorter_collection", "xiangxiang_2027_teams");
+
+            onSnapshot(docRef, (snap) => {
+                if(snap.exists()) {
+                    const data = snap.data();
+                    window.unselected = data.unselected || [];
+                    window.selected = data.selected || [];
+                    render();
+                } else {
+                    // 若首次開啟尚無雲端資料，自動預設載入 80 人名單至備選區並同步
+                    loadXiangXiangCup2027(true);
+                }
+            });
+        } catch(e) {
+            console.error("Firebase 初始化失敗:", e);
+        }
+    }
+
+    window.syncData = function() {
+        if (docRef) {
+            setDoc(docRef, { unselected: window.unselected, selected: window.selected })
+                .catch(err => console.error("寫入失敗:", err));
+        } else {
+            render();
+        }
+    };
+
+    // 載入 2027 香香盃 80 人名單
+    window.loadXiangXiangCup2027 = function(silent = false) {
+        const execLoad = () => {
+            const rawList = "便當,明葦,可魯,阿儒,羅伯特,張小丁,凱凱,阿翰,立軍,小熊,阿修,阿耀,小原,耀中,小雷,Ethan,Kery,Eric,香,韋伯,卡特,元信,達達,Po,鈞壬,老謝,凱能,普羅,蔥花,Jasper,孟丞,小柯,小方,阿哲,俊霖,小崇,貝塔,娜娜,家本,東岳,髒髒,妮妮,泰迪,包子,亨利,傑西,Ken,阿走,肯德基,育群,瑞德,阿任,浩文,Benny,小威,潘囍,小林,Fatty,珀芒阿信,阿樂,阿佑,阿郡,邁特,威威,小美,麻糬,胖虎,阿福,奇奇,順諭,厄尼,Josh,華華,小羅,小恩,森,元氣,慶慶,胖拉,梨子";
+            const names = rawList.split(',').map(n => n.trim()).filter(n => n.length > 0);
+            
+            window.unselected = names.map((name, i) => ({
+                id: 'p' + Date.now() + '_' + i,
+                name: name
+            }));
+            window.selected = [];
+            window.syncData();
+            if(!silent) showToast(`已載入 ${names.length} 位參賽者至待抽籤名單！`);
+        };
+
+        if(silent) execLoad();
+        else openConfirm("這將重置目前的分隊進度並重新載入 80 人名單，確定嗎？", execLoad);
+    };
+
+    window.addNewName = function() {
+        if(!isAdmin) return;
+        const input = document.getElementById('new-name');
+        if(input.value.trim()) {
+            window.unselected.push({ id: 'p'+Date.now(), name: input.value.trim() });
+            input.value = '';
+            window.syncData();
+            showToast("已新增至待抽籤名單");
+        }
+    };
+
+    window.resetAllToPool = function() {
+        if(!isAdmin) return;
+        openConfirm("確定要將所有已分隊的人員退回待抽籤名單嗎？", () => {
+            window.selected.forEach(p => delete p.team);
+            window.unselected = window.unselected.concat(window.selected);
+            window.selected = [];
+            window.syncData();
+            showToast("已全數退回待抽籤名單");
+        });
+    };
+
+    window.clearAllConfirm = function() {
+        if(!isAdmin) return;
+        openConfirm("【警告】這將清空畫面上所有人員，確定嗎？", () => {
+            window.unselected = [];
+            window.selected = [];
+            window.syncData();
+            showToast("已清空所有資料");
+        });
+    };
+
+    window.deleteName = function(id) {
+        if(!isAdmin) return;
+        const idx = window.unselected.findIndex(p => p.id === id);
+        if(idx > -1) {
+            window.unselected.splice(idx, 1);
+            window.syncData();
+        }
+    };
+
+    // 點擊待抽籤名單：自動分配到第一個未滿 8 人的隊伍 (方便快速操作)
+    window.quickAssign = function(id) {
+        if(!isAdmin) return;
+        const idx = window.unselected.findIndex(p => p.id === id);
+        if(idx === -1) return;
+        
+        // 尋找第一個未滿 8 人的隊伍
+        let targetTeam = null;
+        for (let t of teamList) {
+            const count = window.selected.filter(p => p.team === t).length;
+            if (count < 8) {
+                targetTeam = t;
+                break;
+            }
+        }
+        if (!targetTeam) targetTeam = 'A'; // 若全滿則預設入A
+
+        const person = window.unselected.splice(idx, 1)[0];
+        person.team = targetTeam;
+        window.selected.push(person);
+        window.syncData();
+        showToast(`${person.name} ➔ 進入第 ${targetTeam} 組`);
+    };
+
+    // 將成員退回待抽籤區
+    window.moveToPool = function(id) {
+        if(!isAdmin) return;
+        const idx = window.selected.findIndex(p => p.id === id);
+        if(idx > -1) {
+            const person = window.selected.splice(idx, 1)[0];
+            delete person.team;
+            window.unselected.push(person);
+            window.syncData();
+        }
+    };
+
+    // 匯出 TXT
+    window.exportTXT = function() {
+        if(!isAdmin) return;
+        if(window.selected.length === 0) return showToast("目前還沒有人分隊喔！");
+        let txt = "【2027 香香盃分隊名單】\n\n";
+        teamList.forEach(t => {
+            const members = window.selected.filter(p => p.team === t);
+            txt += `=== 第 ${t} 組 (${members.length}人) ===\n`;
+            members.forEach((m, i) => { txt += `${i+1}. ${m.name}\n`; });
+            txt += "\n";
+        });
+        const blob = new Blob([txt], { type: 'text/plain;charset=utf-8;' });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = "2027香香盃分隊名單.txt";
+        link.click();
+    };
+
+    // 匯出 CSV
+    window.exportCSV = function() {
+        if(!isAdmin) return;
+        if(window.selected.length === 0) return showToast("目前還沒有人分隊喔！");
+        let csv = "\uFEFF組別,隊內序號,姓名\n";
+        teamList.forEach(t => {
+            const members = window.selected.filter(p => p.team === t);
+            members.forEach((m, i) => {
+                csv += `第 ${t} 組,${i+1},${m.name}\n`;
+            });
+        });
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = "2027香香盃分隊名單.csv";
+        link.click();
+    };
+
+    // 匯出 JPG 圖片 (強制轉為 5x2 寬版十隊並排)
+    window.exportJPG = function() {
+        if(!isAdmin) return;
+        if(window.selected.length === 0) return showToast("目前還沒有人分隊喔！");
+        const target = document.getElementById('export-target');
+        const board = document.getElementById('teams-board');
+        
+        const origW = target.style.width;
+        const origCols = board.style.gridTemplateColumns;
+        const origPad = target.style.padding;
+
+        target.style.width = '1100px';
+        target.style.padding = '15px';
+        board.style.gridTemplateColumns = 'repeat(5, 1fr)';
+
+        const removeBtns = target.querySelectorAll('.member-remove');
+        removeBtns.forEach(btn => btn.style.display = 'none');
+
+        html2canvas(target, { backgroundColor: '#ffffff', scale: 2 }).then(canvas => {
+            target.style.width = origW;
+            target.style.padding = origPad;
+            board.style.gridTemplateColumns = origCols;
+            removeBtns.forEach(btn => btn.style.display = '');
+
+            const imgUrl = canvas.toDataURL('image/jpeg', 0.92);
+            const imgModal = document.createElement('div');
+            imgModal.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:999999; display:flex; flex-direction:column; justify-content:center; align-items:center; padding:20px;';
+            imgModal.innerHTML = `
+                <div style="background:white; padding:15px; border-radius:8px; text-align:center; max-width:100%; max-height:100%; display:flex; flex-direction:column;">
+                    <h3 style="margin:0 0 5px 0; font-size:16px;">📷 請長按下方圖片即可儲存至相簿</h3>
+                    <div style="overflow:auto; flex:1; margin-bottom:15px; border:1px solid #E5E7EB;">
+                        <img src="${imgUrl}" style="max-width:100%; height:auto; display:block;">
+                    </div>
+                    <button onclick="this.parentElement.parentElement.remove()" style="background:#EF4444; color:white; border:none; padding:10px 24px; border-radius:6px; font-size:15px; font-weight:bold;">✖ 關閉圖片</button>
+                </div>
+            `;
+            document.body.appendChild(imgModal);
+        });
+    };
+
+    // 渲染畫面
+    window.render = function() {
+        document.getElementById('u-cnt').innerText = window.unselected.length;
+        document.getElementById('s-cnt').innerText = window.selected.length;
+
+        // 渲染待抽籤區
+        const uList = document.getElementById('unselected-list');
+        uList.innerHTML = window.unselected.map(p => `
+            <div class="u-item" data-id="${p.id}" data-source="pool">
+                <span class="u-name">${p.name}</span>
+                ${isAdmin ? `<span style="color:#EF4444; margin-left:8px; font-weight:bold; cursor:pointer;" onclick="event.stopPropagation(); deleteName('${p.id}')">✕</span>` : ''}
+            </div>
+        `).join('');
+
+        // 渲染 A-J 十隊
+        teamList.forEach(t => {
+            const members = window.selected.filter(p => p.team === t);
+            const badge = document.getElementById(`badge-${t}`);
+            badge.innerText = `${members.length} / 8`;
+            badge.className = 'team-badge' + (members.length === 8 ? ' full' : (members.length > 8 ? ' over' : ''));
+
+            const listEl = document.getElementById(`team-${t}`);
+            listEl.innerHTML = members.map((m, idx) => `
+                <div class="member-item" data-id="${m.id}" data-source="team" style="background: ${teamColors[t]};">
+                    <div class="member-left">
+                        <span class="member-num">${idx + 1}.</span>
+                        <span class="member-name">${m.name}</span>
+                    </div>
+                    <span class="member-remove" onclick="event.stopPropagation(); moveToPool('${m.id}')" title="退回待抽籤名單">✕</span>
+                </div>
+            `).join('');
+        });
+
+        setupDragAndClick();
+    };
+
+    // 統一拖曳與點擊邏輯 (支援從待抽籤區直接拉進 A-J 隊，也支援隊伍間互拉)
+    let dragEl = null, ghostEl = null, offsetX = 0, offsetY = 0, startX = 0, startY = 0, isDragging = false;
+
+    function setupDragAndClick() {
+        if(!isAdmin) return; // 非管理員完全停用拖曳與點擊互動
+        const draggables = document.querySelectorAll('.u-item, .member-item');
+
+        const handlePointerMove = (e) => {
+            if(!dragEl) return;
+            const dx = Math.abs(e.clientX - startX);
+            const dy = Math.abs(e.clientY - startY);
+
+            // 移動超過 6px 才判定為拖曳，避免誤觸點擊
+            if (!isDragging && (dx > 6 || dy > 6)) {
+                isDragging = true;
+                const rect = dragEl.getBoundingClientRect();
+                ghostEl = dragEl.cloneNode(true);
+                ghostEl.style.position = 'fixed';
+                ghostEl.style.left = rect.left + 'px';
+                ghostEl.style.top = rect.top + 'px';
+                ghostEl.style.width = Math.max(rect.width, 100) + 'px';
+                ghostEl.style.opacity = '0.92';
+                ghostEl.style.pointerEvents = 'none';
+                ghostEl.style.zIndex = '9999';
+                ghostEl.style.transform = 'scale(1.08)';
+                ghostEl.style.boxShadow = '0 10px 20px rgba(0,0,0,0.2)';
+                ghostEl.style.background = '#FFFFFF';
+                document.body.appendChild(ghostEl);
+                dragEl.style.opacity = '0.25';
+            }
+
+            if (!isDragging) return;
+            e.preventDefault();
+
+            ghostEl.style.left = (e.clientX - offsetX) + 'px';
+            ghostEl.style.top = (e.clientY - offsetY) + 'px';
+
+            if (e.clientY < 80) window.scrollBy(0, -10);
+            if (e.clientY > window.innerHeight - 80) window.scrollBy(0, 10);
+
+            dragEl.style.visibility = 'hidden';
+            const target = document.elementFromPoint(e.clientX, e.clientY);
+            dragEl.style.visibility = '';
+
+            if (!target) return;
+            const targetTeamList = target.closest('.team-list');
+            const targetMember = target.closest('.member-item');
+
+            if (targetTeamList) {
+                const t = targetTeamList.getAttribute('data-team');
+                if (ghostEl) ghostEl.style.background = teamColors[t];
+
+                // 視覺即時預覽插入位置
+                if (targetMember && targetMember !== dragEl) {
+                    const arr = Array.from(targetTeamList.children);
+                    const dIdx = arr.indexOf(dragEl);
+                    const tIdx = arr.indexOf(targetMember);
+                    if (dIdx > -1 && dIdx < tIdx) targetMember.after(dragEl);
+                    else targetMember.before(dragEl);
+                } else if (!targetMember) {
+                    targetTeamList.appendChild(dragEl);
+                }
+            }
+        };
+
+        const handlePointerUp = (e) => {
+            if (!dragEl) return;
+
+            const id = dragEl.getAttribute('data-id');
+            const source = dragEl.getAttribute('data-source');
+
+            document.removeEventListener('pointermove', handlePointerMove);
+            document.removeEventListener('pointerup', handlePointerUp);
+            document.removeEventListener('pointercancel', handlePointerUp);
+
+            if (ghostEl && ghostEl.parentNode) ghostEl.parentNode.removeChild(ghostEl);
+            ghostEl = null;
+            dragEl.style.opacity = '';
+
+            // 如果是純點擊（沒有拖曳）且來自待抽籤區 -> 快速入隊
+            if (!isDragging) {
+                dragEl = null;
+                if (source === 'pool') quickAssign(id);
+                return;
+            }
+
+            // 結算拖曳後的資料狀態
+            const parentTeamList = dragEl.closest('.team-list');
+            dragEl = null;
+            isDragging = false;
+
+            if (parentTeamList) {
+                // 如果原本在待抽籤區，先移出
+                if (source === 'pool') {
+                    const pIdx = window.unselected.findIndex(p => p.id === id);
+                    if (pIdx > -1) {
+                        const person = window.unselected.splice(pIdx, 1)[0];
+                        window.selected.push(person);
+                    }
+                }
+
+                // 重新掃描所有隊伍與順序
+                const newSelected = [];
+                teamList.forEach(t => {
+                    document.getElementById(`team-${t}`).querySelectorAll('[data-id]').forEach(el => {
+                        const mId = el.getAttribute('data-id');
+                        const person = window.selected.find(p => p.id === mId);
+                        if (person) {
+                            person.team = t;
+                            newSelected.push(person);
+                        }
+                    });
+                });
+                window.selected = newSelected;
+                window.syncData();
+            } else {
+                render(); // 若沒拉進任何隊伍則恢復原狀
+            }
+        };
+
+        draggables.forEach(el => {
+            el.addEventListener('pointerdown', (e) => {
+                if (e.target.classList.contains('member-remove') || e.target.innerText === '✕') return;
+                dragEl = el;
+                isDragging = false;
+                startX = e.clientX;
+                startY = e.clientY;
+                const rect = el.getBoundingClientRect();
+                offsetX = e.clientX - rect.left;
+                offsetY = e.clientY - rect.top;
+
+                document.addEventListener('pointermove', handlePointerMove, { passive: false });
+                document.addEventListener('pointerup', handlePointerUp);
+                document.addEventListener('pointercancel', handlePointerUp);
+            });
+        });
+    }
+
+    // 單機預設初始化 (若無連線或首次載入)
+    if (!docRef) {
+        loadXiangXiangCup2027(true);
+    }
+</script>
+</body>
+</html>
