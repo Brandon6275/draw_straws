@@ -20,21 +20,21 @@
             --t-J: #F1F5F9; /* 柔灰藍 */
         }
         * { box-sizing: border-box; font-family: sans-serif; }
-        body { margin: 0; padding: 10px; background-color: #666666; color: #1F2937; touch-action: manipulation; }
+        body { margin: 0; padding: 10px; background-color: #666666; color: #F9FAFB; touch-action: manipulation; }
         
-        .panel { background: white; border-radius: 8px; padding: 12px; margin-bottom: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
-        button { padding: 6px 12px; border: 1px solid #D1D5DB; border-radius: 6px; background: white; cursor: pointer; font-size: 13px; font-weight: 500; }
+        .panel { background: #666666; border: 1px solid #777777; border-radius: 8px; padding: 12px; margin-bottom: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.25); color: #F9FAFB; }
+        button { padding: 6px 12px; border: 1px solid #D1D5DB; border-radius: 6px; background: white; color: #1F2937; cursor: pointer; font-size: 13px; font-weight: 500; }
         button:active { background: #F3F4F6; }
-        input[type="text"] { padding: 6px; border: 1px solid #D1D5DB; border-radius: 6px; }
+        input[type="text"] { padding: 6px; border: 1px solid #D1D5DB; border-radius: 6px; color: #1F2937; }
         
         .flex-wrap { display: flex; flex-wrap: wrap; gap: 8px; }
         
         /* 備選區人名卡片 (支援直接拖曳或點擊) */
         .u-item { 
             display: inline-flex; align-items: center; padding: 8px 12px; 
-            background: white; border: 1px solid #CBD5E1; border-radius: 6px; 
-            font-size: 14px; font-weight: 500; cursor: grab; user-select: none; touch-action: none;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            background: #E5E7EB; color: #111827; border: 1px solid #CBD5E1; border-radius: 6px; 
+            font-size: 14px; font-weight: 600; cursor: grab; user-select: none; touch-action: none;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
         }
         .u-item:active { cursor: grabbing; transform: scale(0.95); }
 
@@ -49,9 +49,9 @@
         }
 
         .team-col {
-            border: 2px solid #888888;
+            border: 2px solid #999999;
             border-radius: 8px;
-            background: #AAAAAA;
+            background: #CCCCCC;
             display: flex;
             flex-direction: column;
             min-height: 280px;
@@ -61,10 +61,11 @@
             padding: 8px 10px;
             font-weight: bold;
             font-size: 15px;
+            color: #1F2937;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 2px solid rgba(0,0,0,0.08);
+            border-bottom: 2px solid rgba(0,0,0,0.1);
         }
         .team-badge {
             font-size: 12px;
@@ -94,7 +95,8 @@
         /* 隊伍內的成員方塊 */
         .member-item {
             background: white;
-            border: 1px solid rgba(0,0,0,0.12);
+            color: #111827;
+            border: 1px solid rgba(0,0,0,0.15);
             border-radius: 6px;
             padding: 6px 8px;
             display: flex;
@@ -148,11 +150,11 @@
     <!-- 匯出與標題列 -->
     <div class="panel" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
         <div>
-            <strong style="font-size: 17px; color: #111827;">🏆 2027 香香盃分隊抽籤看板</strong>
-            <span style="font-size: 12px; color: #6B7280; display:block;">共 10 組 (A ~ J) · 每組 8 人</span>
+            <strong style="font-size: 17px; color: #FFFFFF;">🏆 2027 香香盃分隊抽籤看板</strong>
+            <span style="font-size: 12px; color: #E5E7EB; display:block;">共 10 組 (A ~ J) · 每組 8 人</span>
         </div>
         <!-- 觀眾模式提示標籤 -->
-        <div id="viewer-badge" style="background:#EFF6FF; color:#1D4ED8; border:1px solid #BFDBFE; padding:6px 12px; border-radius:6px; font-size:13px; font-weight:600;">
+        <div id="viewer-badge" style="background:#374151; color:#93C5FD; border:1px solid #4B5563; padding:6px 12px; border-radius:6px; font-size:13px; font-weight:600;">
             👀 抽籤結果即時轉播中 (僅供觀看)
         </div>
         <!-- 匯出按鈕僅限管理員可見 -->
@@ -178,10 +180,19 @@
     </div>
 
     <!-- 備選區 (待抽籤名單) -->
-    <div class="panel" style="border-top: 4px solid #6B7280;">
-        <strong style="display:block; margin-bottom: 8px;">
+    <div class="panel" style="border-top: 4px solid #9CA3AF;">
+        <strong style="display:block; margin-bottom: 8px; color: #FFFFFF;">
             待抽籤名單 (<span id="u-cnt">0</span> 人) 
-            <span class="admin-only" id="pool-hint" style="font-size:12px; color:#6B7280; font-weight:normal;">- 直接按住拖曳至下方 A~J 隊伍，或點擊快速入隊</span>
+            <span class="admin-only" id="pool-hint" style="font-size:12px; color:#D1D5DB; font-weight:normal;">- 直接按住拖曳至下方 A~J 隊伍，或點擊快速入隊</span>
+        </strong>
+        <div id="unselected-list" class="flex-wrap" style="min-height: 45px;"></div>
+    </div>
+
+    <!-- A ~ J 十隊分組看板 -->
+    <div class="panel" style="border-top: 4px solid #60A5FA;">
+        <strong style="display:block; margin-bottom: 10px; color: #FFFFFF;">
+            各隊抽籤結果 (<span id="s-cnt">0</span> / 80 人) 
+            <span class="admin-only" id="board-hint" style="font-size:12px; color:#D1D5DB; font-weight:normal;">- 隊員可跨隊拖曳調整位置</span>
         </strong>
         <div id="unselected-list" class="flex-wrap" style="min-height: 45px;"></div>
     </div>
@@ -465,7 +476,7 @@
         const removeBtns = target.querySelectorAll('.member-remove');
         removeBtns.forEach(btn => btn.style.display = 'none');
 
-        html2canvas(target, { backgroundColor: '#ffffff', scale: 2 }).then(canvas => {
+        html2canvas(target, { backgroundColor: '#666666', scale: 2 }).then(canvas => {
             target.style.width = origW;
             target.style.padding = origPad;
             board.style.gridTemplateColumns = origCols;
