@@ -114,6 +114,38 @@
         .member-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
         .member-remove { font-size: 13px; color: #EF4444; cursor: pointer; padding: 2px 4px; line-height: 1; font-weight: bold; }
 
+        /* 隊長專屬樣式與管理員選單 */
+        .member-item.is-captain {
+            border: 2px solid #D97706 !important;
+            box-shadow: 0 2px 5px rgba(217, 119, 6, 0.35);
+        }
+        .captain-tag {
+            background: #F59E0B;
+            color: #FFFFFF;
+            font-size: 11px;
+            font-weight: bold;
+            padding: 1px 5px;
+            border-radius: 4px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .captain-select-bar {
+            padding: 4px 8px;
+            background: rgba(0, 0, 0, 0.06);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+        }
+        .captain-select {
+            width: 100%;
+            padding: 3px 6px;
+            font-size: 12px;
+            border: 1px solid #9CA3AF;
+            border-radius: 4px;
+            background: #FFFFFF;
+            color: #1F2937;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
         /* 管理員專屬區塊預設隱藏 */
         .admin-only { display: none; }
         
@@ -266,12 +298,33 @@
     boardEl.innerHTML = teamList.map(t => `
         <div class="team-col" style="border-color: rgba(0,0,0,0.12);">
             <div class="team-header" style="background: ${teamColors[t]};">
-                <span>第 ${t} 組</span>
+                <span>${t} 組</span>
                 <span class="team-badge" id="badge-${t}">0 / 8</span>
             </div>
+            ${isAdmin ? `
+            <div class="captain-select-bar">
+                <select class="captain-select" id="cap-select-${t}" onchange="setCaptain('${t}', this.value)">
+                    <option value="">👑 指定隊長 (無)</option>
+                </select>
+            </div>` : ''}
             <div class="team-list" id="team-${t}" data-team="${t}"></div>
         </div>
     `).join('');
+
+    // 指定或取消該隊隊長
+    window.setCaptain = function(team, captainId) {
+        if(!isAdmin) return;
+        let captainName = "";
+        window.selected.forEach(p => {
+            if (p.team === team) {
+                p.isCaptain = (p.id === captainId);
+                if (p.isCaptain) captainName = p.name;
+            }
+        });
+        window.syncData();
+        if (captainName) showToast(`已指定「${captainName}」為 ${team} 組隊長！`);
+        else showToast(`已取消 ${team} 組隊長標示`);
+    };
 
     // 提示訊息工具 (取代 alert)
     window.showToast = function(msg) {
@@ -363,7 +416,7 @@
     window.resetAllToPool = function() {
         if(!isAdmin) return;
         openConfirm("確定要將所有已分隊的人員退回待抽籤名單嗎？", () => {
-            window.selected.forEach(p => delete p.team);
+            window.selected.forEach(p => { delete p.team; delete p.isCaptain; });
             window.unselected = window.unselected.concat(window.selected);
             window.selected = [];
             window.syncData();
@@ -417,9 +470,10 @@
 
         const person = window.unselected.splice(idx, 1)[0];
         person.team = targetTeam;
+        person.isCaptain = false;
         window.selected.push(person);
         window.syncData();
-        showToast(`${person.name} ➔ 自動補位至第 ${targetTeam} 組 (目前 ${minCount + 1} 人)`);
+        showToast(`${person.name} ➔ 自動補位至 ${targetTeam} 組 (目前 ${minCount + 1} 人)`);
     };
 
     // 將成員退回待抽籤區
@@ -429,6 +483,7 @@
         if(idx > -1) {
             const person = window.selected.splice(idx, 1)[0];
             delete person.team;
+            delete person.isCaptain;
             window.unselected.push(person);
             window.syncData();
         }
@@ -441,8 +496,8 @@
         let txt = "【2027 香香盃分隊名單】\n\n";
         teamList.forEach(t => {
             const members = window.selected.filter(p => p.team === t);
-            txt += `=== 第 ${t} 組 (${members.length}人) ===\n`;
-            members.forEach((m, i) => { txt += `${i+1}. ${m.name}\n`; });
+            txt += `=== ${t} 組 (${members.length}人) ===\n`;
+            members.forEach((m, i) => { txt += `${i+1}. ${m.name}${m.isCaptain ? ' (👑隊長)' : ''}\n`; });
             txt += "\n";
         });
         const blob = new Blob([txt], { type: 'text/plain;charset=utf-8;' });
@@ -456,11 +511,11 @@
     window.exportCSV = function() {
         if(!isAdmin) return;
         if(window.selected.length === 0) return showToast("目前還沒有人分隊喔！");
-        let csv = "\uFEFF組別,隊內序號,姓名\n";
+        let csv = "\uFEFF組別,隊內序號,姓名,備註\n";
         teamList.forEach(t => {
             const members = window.selected.filter(p => p.team === t);
             members.forEach((m, i) => {
-                csv += `第 ${t} 組,${i+1},${m.name}\n`;
+                csv += `${t} 組,${i+1},${m.name},${m.isCaptain ? '隊長' : ''}\n`;
             });
         });
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -531,12 +586,24 @@
             badge.innerText = `${members.length} / 8`;
             badge.className = 'team-badge' + (members.length === 8 ? ' full' : (members.length > 8 ? ' over' : ''));
 
+            // 更新管理員隊長下拉選單
+            if (isAdmin) {
+                const capSelect = document.getElementById(`cap-select-${t}`);
+                if (capSelect) {
+                    const currentCap = members.find(m => m.isCaptain);
+                    const currentCapId = currentCap ? currentCap.id : "";
+                    capSelect.innerHTML = `<option value="">👑 指定隊長 (無)</option>` + 
+                        members.map(m => `<option value="${m.id}" ${m.id === currentCapId ? 'selected' : ''}>👑 ${m.name}</option>`).join('');
+                }
+            }
+
             const listEl = document.getElementById(`team-${t}`);
             listEl.innerHTML = members.map((m, idx) => `
-                <div class="member-item" data-id="${m.id}" data-source="team" style="background: ${teamColors[t]};">
+                <div class="member-item ${m.isCaptain ? 'is-captain' : ''}" data-id="${m.id}" data-source="team" style="background: ${teamColors[t]};">
                     <div class="member-left">
                         <span class="member-num">${idx + 1}.</span>
                         <span class="member-name">${m.name}</span>
+                        ${m.isCaptain ? `<span class="captain-tag">👑 隊長</span>` : ''}
                     </div>
                     <span class="member-remove" onclick="event.stopPropagation(); moveToPool('${m.id}')" title="退回待抽籤名單">✕</span>
                 </div>
@@ -665,6 +732,10 @@
                         const mId = el.getAttribute('data-id');
                         const person = window.selected.find(p => p.id === mId);
                         if (person) {
+                            // 若隊員跨隊拖曳到別隊，自動解除原隊伍的隊長身分
+                            if (person.team && person.team !== t) {
+                                person.isCaptain = false;
+                            }
                             person.team = t;
                             newSelected.push(person);
                         }
