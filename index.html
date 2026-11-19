@@ -228,12 +228,12 @@
     <div class="panel" id="pool-panel" style="border-top: 4px solid #9CA3AF;">
         <strong style="display:block; margin-bottom: 8px; color: #FFFFFF;">
             待抽籤名單 (<span id="u-cnt">0</span> 人) 
-            <span class="admin-only" id="pool-hint" style="font-size:12px; color:#D1D5DB; font-weight:normal;">- 直接按住拖曳至下方 A~J 隊伍，或雙擊自動補位</span>
+            <span class="admin-only" id="pool-hint" style="font-size:12px; color:#D1D5DB; font-weight:normal;">- 直接按住拖曳至下方第 1 ~ 10 隊，或雙擊自動補位</span>
         </strong>
         <div id="unselected-list" class="flex-wrap" style="min-height: 45px;"></div>
     </div>
 
-    <!-- A ~ J 十隊分組看板 -->
+    <!-- 第 1 ~ 10 隊分組看板 -->
     <div class="panel" id="teams-panel" style="border-top: 4px solid #60A5FA;">
         <strong style="display:block; margin-bottom: 10px; color: #FFFFFF;">
             各隊抽籤結果 (<span id="s-cnt">0</span> / 80 人) 
@@ -242,7 +242,7 @@
         
         <div id="export-target">
             <div class="teams-board" id="teams-board">
-                <!-- 由 JS 動態生成 A ~ J 十個隊伍欄位 -->
+                <!-- 由 JS 動態生成第 1 ~ 10 隊欄位 -->
             </div>
         </div>
     </div>
@@ -291,6 +291,10 @@
 
     let isAdmin = false;
     const teamList = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+    const teamLabels = {
+        A: '第 1 隊', B: '第 2 隊', C: '第 3 隊', D: '第 4 隊', E: '第 5 隊',
+        F: '第 6 隊', G: '第 7 隊', H: '第 8 隊', I: '第 9 隊', J: '第 10 隊'
+    };
     const teamColors = {
         A: '#FEE2E2', B: '#FFEDD5', C: '#FEF9C3', D: '#DCFCE7', E: '#CCFBF1',
         F: '#DBEAFE', G: '#E0E7FF', H: '#F3E8FF', I: '#FCE7F3', J: '#F1F5F9'
@@ -325,7 +329,7 @@
         boardEl.innerHTML = teamList.map(t => `
             <div class="team-col" style="border-color: rgba(0,0,0,0.12);">
                 <div class="team-header" style="background: ${teamColors[t]};">
-                    <span>${t} 組</span>
+                    <span>${teamLabels[t]}</span>
                     <span class="team-badge" id="badge-${t}">0 / 8</span>
                 </div>
                 ${isAdmin ? `
@@ -538,7 +542,7 @@
         const [person] = window.unselected.splice(idx, 1);
         window.selected.push({ id: person.id, name: person.name, team: targetTeam, isCaptain: false });
         syncData();
-        showToast(`「${person.name}」已自動分配至 ${targetTeam} 組`);
+        showToast(`「${person.name}」已自動分配至 ${teamLabels[targetTeam]}`);
     };
 
     // 渲染畫面
@@ -683,7 +687,7 @@
         let txt = "=== 2027 香香盃分隊結果 ===\n\n";
         teamList.forEach(t => {
             const members = window.selected.filter(m => m.team === t);
-            txt += `【${t} 組】(${members.length}/8人)\n`;
+            txt += `【${teamLabels[t]}】(${members.length}/8人)\n`;
             members.forEach((m, i) => {
                 txt += `  ${i + 1}. ${m.name}${m.isCaptain ? ' (隊長)' : ''}\n`;
             });
@@ -694,11 +698,11 @@
 
     // 匯出 CSV
     window.exportCSV = function() {
-        let csv = "\uFEFF組別,編號,姓名,備註\n";
+        let csv = "\uFEFF隊伍,編號,姓名,備註\n";
         teamList.forEach(t => {
             const members = window.selected.filter(m => m.team === t);
             members.forEach((m, i) => {
-                csv += `${t}組,${i + 1},${m.name},${m.isCaptain ? '隊長' : ''}\n`;
+                csv += `${teamLabels[t]},${i + 1},${m.name},${m.isCaptain ? '隊長' : ''}\n`;
             });
         });
         downloadFile(csv, "2027香香盃分隊名單.csv", "text/csv;charset=utf-8");
